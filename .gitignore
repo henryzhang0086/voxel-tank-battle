@@ -1,0 +1,15 @@
+# 仅用于无头测试的 three 垫片，浏览器经 importmap 加载 lib/three.module.js，无需提交
+node_modules/
+
+# 海报生成的中间产物（按需保留，默认不提交大图）
+poster/poster.html
+poster/poster.png
+
+# 杂项
+*.log
+.DS_Store
+Thumbs.db
+_smoke.mjs
+_fire.mjs
+_dbg.mjs
+_move.mjs

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>坦克大战 · VOXEL TANK BATTLE</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./lib/three.module.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <!-- 准星 -->
+  <div id="crosshair" class="hidden">
+    <div class="ch-dot"></div>
+    <div class="ch-ring"></div>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div class="hud-stat"><span class="label">波次</span><span id="hud-wave" class="value">1</span></div>
+      <div class="hud-stat"><span class="label">得分</span><span id="hud-score" class="value">0</span></div>
+      <div class="hud-stat"><span class="label">剩余敌军</span><span id="hud-enemies" class="value">0</span></div>
+    </div>
+
+    <div class="hud-bottom-left">
+      <div class="bar-label">装甲 / HP</div>
+      <div class="bar"><div id="hud-hp" class="bar-fill hp"></div></div>
+      <div class="bar-label" style="margin-top:10px">主炮 / AMMO</div>
+      <div class="bar"><div id="hud-reload" class="bar-fill ammo"></div></div>
+      <div id="hud-reload-text" class="reload-text">就绪</div>
+    </div>
+
+    <canvas id="minimap" width="180" height="180"></canvas>
+
+    <div id="hitflash"></div>
+    <div id="damage-vignette"></div>
+  </div>
+
+  <!-- 开始菜单 -->
+  <div id="menu" class="overlay">
+    <div class="panel">
+      <h1>坦克大战</h1>
+      <div class="subtitle">VOXEL&nbsp;&nbsp;TANK&nbsp;&nbsp;BATTLE</div>
+      <p class="blurb">驾驶你的方块坦克，在可破坏的体素战场上消灭一波又一波敌军装甲。</p>
+      <button id="btn-start" class="btn-primary">开始战斗</button>
+      <div class="controls">
+        <div class="ctrl-row"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>驾驶 · 相对镜头方向</span></div>
+        <div class="ctrl-row"><kbd>鼠标</kbd><span>瞄准炮塔 / 旋转镜头</span></div>
+        <div class="ctrl-row"><kbd>左键</kbd><span>开炮</span></div>
+        <div class="ctrl-row"><kbd>Shift</kbd><span>加速冲刺</span></div>
+        <div class="ctrl-row"><kbd>Esc</kbd><span>释放鼠标</span></div>
+      </div>
+      <div class="hint" id="loading-hint">正在生成战场…</div>
+    </div>
+  </div>
+
+  <!-- 结束画面 -->
+  <div id="gameover" class="overlay hidden">
+    <div class="panel">
+      <h1 class="go-title">坦克被击毁</h1>
+      <div class="go-stats">
+        <div><span class="label">坚持波次</span><span id="go-wave" class="value">1</span></div>
+        <div><span class="label">最终得分</span><span id="go-score" class="value">0</span></div>
+      </div>
+      <button id="btn-restart" class="btn-primary">再战一局</button>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

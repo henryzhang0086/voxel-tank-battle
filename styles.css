@@ -1,0 +1,123 @@
+:root{
+  --accent:#ffb33e;
+  --accent2:#ff5a3c;
+  --green:#7ed957;
+  --bg:#0a0d12;
+  --panel:rgba(14,18,26,.86);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);
+  font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;color:#e9eef5;cursor:default;
+  touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;
+  overscroll-behavior:none}
+canvas#game{position:fixed;inset:0;width:100%;height:100%;display:block}
+.hidden{display:none !important}
+
+/* ---------- 准星 ---------- */
+#crosshair{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
+  pointer-events:none;z-index:30}
+.ch-dot{position:absolute;left:50%;top:50%;width:4px;height:4px;border-radius:50%;
+  background:var(--accent);transform:translate(-50%,-50%);box-shadow:0 0 6px var(--accent)}
+.ch-ring{width:34px;height:34px;border:2px solid rgba(255,179,62,.6);border-radius:50%;
+  box-shadow:0 0 8px rgba(255,179,62,.35)}
+
+/* ---------- HUD ---------- */
+#hud{position:fixed;inset:0;pointer-events:none;z-index:20;font-variant-numeric:tabular-nums}
+.hud-top{position:absolute;top:18px;left:50%;transform:translateX(-50%);
+  display:flex;gap:34px;padding:10px 26px;background:var(--panel);
+  border:1px solid rgba(255,255,255,.08);border-radius:12px;backdrop-filter:blur(6px)}
+.hud-stat{display:flex;flex-direction:column;align-items:center;min-width:78px}
+.hud-stat .label{font-size:11px;letter-spacing:2px;color:#8a96a8}
+.hud-stat .value{font-size:26px;font-weight:700;color:#fff;line-height:1.1}
+#hud-score.value{color:var(--accent)}
+
+.hud-bottom-left{position:absolute;left:24px;bottom:24px;width:280px}
+.bar-label{font-size:11px;letter-spacing:2px;color:#9aa6b6;margin-bottom:4px}
+.bar{height:16px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.12);
+  border-radius:8px;overflow:hidden}
+.bar-fill{height:100%;width:100%;transition:width .12s linear;border-radius:7px}
+.bar-fill.hp{background:linear-gradient(90deg,#3cff7a,#7ed957)}
+.bar-fill.ammo{background:linear-gradient(90deg,#ffb33e,#ff5a3c)}
+.reload-text{font-size:12px;color:var(--accent);margin-top:5px;letter-spacing:1px}
+
+#minimap{position:absolute;right:22px;bottom:22px;border:1px solid rgba(255,255,255,.14);
+  border-radius:10px;background:rgba(6,9,14,.7)}
+
+#hitflash{position:fixed;inset:0;background:var(--accent);opacity:0;pointer-events:none;
+  mix-blend-mode:screen}
+#damage-vignette{position:fixed;inset:0;pointer-events:none;opacity:0;
+  box-shadow:inset 0 0 180px 40px rgba(255,30,20,.85)}
+
+/* ---------- 覆盖菜单 ---------- */
+.overlay{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at center,rgba(14,20,30,.6),rgba(4,6,10,.94))}
+.panel{width:min(92vw,520px);padding:40px 44px;text-align:center;
+  background:var(--panel);border:1px solid rgba(255,255,255,.1);border-radius:18px;
+  box-shadow:0 30px 90px rgba(0,0,0,.6);backdrop-filter:blur(10px)}
+.panel h1{font-size:54px;font-weight:800;letter-spacing:4px;
+  background:linear-gradient(180deg,#fff,#ffd28a);-webkit-background-clip:text;
+  background-clip:text;color:transparent;text-shadow:0 4px 30px rgba(255,179,62,.2)}
+.subtitle{font-size:14px;letter-spacing:8px;color:var(--accent);margin-top:2px}
+.blurb{margin:22px 0 26px;color:#b6c0cf;font-size:15px;line-height:1.7}
+.btn-primary{appearance:none;border:none;cursor:pointer;pointer-events:auto;
+  padding:14px 46px;font-size:18px;font-weight:700;letter-spacing:2px;color:#231400;
+  background:linear-gradient(180deg,#ffd06b,#ffb33e);border-radius:12px;
+  box-shadow:0 8px 24px rgba(255,179,62,.35);transition:transform .1s,box-shadow .1s}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(255,179,62,.5)}
+.btn-primary:active{transform:translateY(0)}
+.controls{margin-top:30px;display:flex;flex-direction:column;gap:10px;text-align:left;
+  padding-top:22px;border-top:1px solid rgba(255,255,255,.08)}
+.ctrl-row{display:flex;align-items:center;gap:8px;color:#aeb9c8;font-size:14px}
+.ctrl-row span{margin-left:6px}
+kbd{display:inline-block;min-width:24px;padding:3px 8px;font-size:12px;font-weight:600;
+  text-align:center;color:#fff;background:#222b38;border:1px solid #3a4658;
+  border-bottom-width:3px;border-radius:6px}
+.hint{margin-top:22px;font-size:13px;color:#7c8799;letter-spacing:1px}
+
+.go-title{font-size:42px !important;background:linear-gradient(180deg,#fff,#ff8a6a) !important;
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.go-stats{display:flex;justify-content:center;gap:50px;margin:28px 0 30px}
+.go-stats div{display:flex;flex-direction:column;gap:4px}
+.go-stats .label{font-size:12px;letter-spacing:2px;color:#8a96a8}
+.go-stats .value{font-size:38px;font-weight:800;color:var(--accent)}
+
+/* ---------- 移动端触摸控制 ---------- */
+#touch-ui{position:fixed;inset:0;z-index:40;pointer-events:none}
+#touch-ui .look-layer{position:absolute;inset:0;pointer-events:auto;z-index:1}
+.joystick{position:absolute;left:30px;bottom:34px;width:124px;height:124px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,.08),rgba(0,0,0,.28));
+  border:2px solid rgba(255,255,255,.18);pointer-events:auto;z-index:3;
+  display:flex;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(0,0,0,.4)}
+.joy-knob{width:54px;height:54px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#ffd06b,#ff9a2e);
+  border:2px solid rgba(255,255,255,.5);box-shadow:0 4px 12px rgba(0,0,0,.5);
+  transition:transform .03s linear}
+.t-btn{position:absolute;pointer-events:auto;z-index:3;border:none;border-radius:50%;
+  color:#231400;font-weight:800;letter-spacing:1px;font-family:inherit;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 6px 18px rgba(0,0,0,.45);transition:transform .05s,filter .05s}
+.t-btn.pressed{transform:scale(.92);filter:brightness(1.25)}
+.btn-fire{right:30px;bottom:40px;width:120px;height:120px;font-size:24px;
+  background:radial-gradient(circle at 38% 32%,#ff8a5a,#ff3b1f);color:#fff;
+  text-shadow:0 1px 3px rgba(0,0,0,.5)}
+.btn-sprint{right:160px;bottom:70px;width:78px;height:78px;font-size:16px;
+  background:radial-gradient(circle at 38% 32%,#ffd87a,#ffb33e)}
+
+/* 触摸设备下，HUD 让位给摇杆/按钮：信息移到顶部，小地图移到右上 */
+body.touch .hud-bottom-left{bottom:auto;top:70px;left:14px;width:200px}
+body.touch #minimap{bottom:auto;top:70px;right:14px;width:118px;height:118px}
+body.touch .hud-top{top:10px;gap:18px;padding:8px 16px}
+body.touch .hud-stat{min-width:56px}
+body.touch .hud-stat .value{font-size:20px}
+body.touch .ch-ring{width:26px;height:26px}
+
+@media (max-width:560px){
+  .panel{padding:28px 24px}
+  .panel h1{font-size:40px}
+  .blurb{font-size:14px;margin:16px 0 20px}
+}
+@media (max-height:480px){
+  .joystick{left:20px;bottom:18px;width:108px;height:108px}
+  .btn-fire{right:20px;bottom:22px;width:100px;height:100px}
+  .btn-sprint{right:134px;bottom:44px;width:66px;height:66px}
+}
