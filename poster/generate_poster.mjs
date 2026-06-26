@@ -6,9 +6,9 @@ const qrcode = require('./qrcode.cjs');
 
 const W = 1200, H = 1600;
 
-// 手机访问地址（如换网络/IP，改这里重渲染即可）
-const PLAY_URL = 'http://172.16.1.106:8000/index.html';
-const URL_LABEL = '172.16.1.106:8000';
+// 在线地址（GitHub Pages，全球可玩；改这里重渲染即可）
+const PLAY_URL = 'https://henryzhang0086.github.io/voxel-tank-battle/';
+const URL_LABEL = 'GitHub Pages · 免安装';
 
 // ---------- 二维码卡片 ----------
 function qrCard(url, label, cardX, cardY, CW, CH) {
@@ -250,14 +250,14 @@ ${sparks(boom.x, boom.y, 70, 250)}
   <text x="${W / 2}" y="408" font-size="34" font-weight="700" fill="#eef2f8" letter-spacing="6">可破坏体素战场 · 波次生存 · 3D 装甲对决</text>
 </g>
 
-<!-- 二维码卡片 -->
-${qrCard(PLAY_URL, URL_LABEL, 824, 1108, 320, 360)}
+<!-- 二维码卡片（GitHub Pages 在线版，扫码即玩） -->
+${qrCard(PLAY_URL, URL_LABEL, 824, 1104, 320, 372)}
 
-<!-- 底部信息（左对齐，给二维码让位） -->
+<!-- 底部：在线地址 + 操作 -->
 <g text-anchor="start">
-  <text x="72" y="1486" font-size="34" font-weight="800" fill="#ffd06b" letter-spacing="2">WebGL 即开即玩 · 手机/电脑双端</text>
-  <text x="72" y="1530" font-size="24" font-weight="700" fill="#9fd6f0" letter-spacing="2">Three.js · 可破坏体素战场</text>
-  <text x="72" y="1566" font-size="20" fill="#9aa6b6" letter-spacing="1">摇杆/WASD 驾驶　触屏/鼠标 瞄准　按钮/左键 开炮</text>
+  <text x="72" y="1466" font-size="30" font-weight="800" fill="#ffd06b" letter-spacing="2">▶ 在线畅玩 · 手机/电脑免安装即点即玩</text>
+  <text x="72" y="1516" font-size="28" font-weight="800" fill="#8fe0ff" letter-spacing="1">henryzhang0086.github.io/voxel-tank-battle</text>
+  <text x="72" y="1560" font-size="19" fill="#9aa6b6" letter-spacing="1">摇杆 / WASD 驾驶　触屏 / 鼠标 瞄准　按钮 / 左键 开炮　·　Three.js WebGL</text>
 </g>
 
 <!-- 四角装饰 -->

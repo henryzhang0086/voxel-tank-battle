@@ -6,6 +6,7 @@ import { Tank } from './entities/Tank.js';
 import { EnemyTank } from './entities/EnemyTank.js';
 import { ShellManager } from './entities/Shell.js';
 import { Particles } from './fx/Particles.js';
+import { Debris } from './fx/Debris.js';
 import { Sound } from './audio/Sound.js';
 import { HUD } from './ui/HUD.js';
 import { TouchControls } from './ui/TouchControls.js';
@@ -52,6 +53,9 @@ class Game {
     this.camYaw = 0;
     this.camPitch = 0.18;
     this.shake = 0;
+    this.fovKick = 0;                  // 开炮 FOV 顿挫
+    this.curFov = this.engine.baseFov; // 平滑后的当前 FOV
+    this.sprinting = false;
     this.wave = 0;
     this.score = 0;
     this.cooldown = 0;
@@ -88,6 +92,7 @@ class Game {
       sizeX: 128, sizeZ: 128, sizeY: 40, chunk: 16, seed: 20260626,
     });
     this.shells = new ShellManager(this.engine.scene, this.world);
+    this.debris = new Debris(this.engine.scene, this.world);
 
     this.player = new Tank(this.world, { isEnemy: false });
     const c = this.world.centerSpawn;
@@ -96,6 +101,9 @@ class Game {
     this.player.addTo(this.engine.scene);
 
     document.getElementById('loading-hint').textContent = '战场已就绪 — 点击「开始战斗」';
+
+    // 调试：?auto 自动开局（用于无头截图验证渲染管线）
+    if (location.search.includes('auto')) requestAnimationFrame(() => this.start());
   }
 
   start() {
@@ -106,9 +114,11 @@ class Game {
     this.enemies.length = 0;
     this.shells.clear();
     this.particles.clear();
+    this.debris.clear();
 
     this.player.hp = this.player.maxHp;
     this.player.alive = true;
+    this.player.group.visible = true;
     const c = this.world.centerSpawn;
     this.player.setPosition(c.x, c.y + 1, c.z);
     this.player.hullYaw = 0;
@@ -159,6 +169,7 @@ class Game {
     const dt = Math.min(0.05, this.clock.getDelta());
     if (this.state === 'playing') this._update(dt);
     this.particles.update(dt);
+    if (this.debris) this.debris.update(dt);
     this.hud.update(dt);
     this.engine.render();
   }
@@ -220,6 +231,7 @@ class Game {
     }
 
     let speed01 = 0;
+    this.sprinting = false;
     const moving = ix * ix + iz * iz > 0.0001 && mag > 0.05;
     if (moving) {
       const inv = 1 / Math.hypot(ix, iz);
@@ -233,6 +245,7 @@ class Game {
       const targetHull = Math.atan2(ix, iz);
       p.hullYaw = this._angleLerp(p.hullYaw, targetHull, 6 * dt);
       speed01 = moved ? (sprint / SPRINT) * mag : 0;
+      this.sprinting = sprintOn && moved;
       if (moved) {
         this.movedDist += step;
         if (this.movedDist > 1.4) { this.movedDist = 0; this._treadDust(p); }
@@ -264,6 +277,7 @@ class Game {
     this.sound.cannon();
     p.recoil = 0.5;
     this.shake = Math.max(this.shake, 0.25);
+    this.fovKick = Math.max(this.fovKick, 7);
     this.cooldown = RELOAD;
   }
 
@@ -316,6 +330,7 @@ class Game {
         if (killed) this._gameOver();
       } else {
         this.particles.debris(t.pos.clone().setY(t.pos.y + 1.0), [0.7, 0.25, 0.18], 6);
+        if (!ownerIsEnemy) this.hud.hitMarker();
         this.sound.hit();
         if (killed) this._killEnemy(t);
       }
@@ -329,18 +344,28 @@ class Game {
   _killEnemy(e) {
     const at = e.pos.clone(); at.y += 1.0;
     this.particles.explosion(at, 1.6);
-    this.particles.debris(at, [0.5, 0.22, 0.16], 22);
+    this.debris.burst(at.x, e.pos.y + 0.4, at.z, [0.62, 0.24, 0.17], 28, 11);
     this.sound.explosion(1.4);
     e.alive = false;
     e.group.visible = false;
-    this.score += 100 * this.wave;
+    const pts = 100 * this.wave;
+    this.score += pts;
+    this.hud.killFeed(pts);
     this.hud.setScore(this.score);
   }
 
   _updateCamera(dt) {
     const cam = this.engine.camera;
+
+    // —— FOV：基础 + 冲刺拉伸 + 开炮顿挫（沿视轴回拉，不破坏瞄准方向） ——
+    this.fovKick = Math.max(0, this.fovKick - dt * 26);
+    const targetFov = this.engine.baseFov + (this.sprinting ? 6 : 0) + this.fovKick;
+    this.curFov += (targetFov - this.curFov) * Math.min(1, dt * 12);
+    this.engine.setFov(this.curFov);
+    const dolly = CAM_DIST + this.fovKick * 0.06;
+
     this._camTarget.copy(this.player.pos); this._camTarget.y += 2.2;
-    this._camPos.copy(this._camTarget).addScaledVector(this._dir, -CAM_DIST);
+    this._camPos.copy(this._camTarget).addScaledVector(this._dir, -dolly);
 
     // 镜头不要穿入地形
     const ground = this.world.heightAt(this._camPos.x, this._camPos.z) + 0.8;
@@ -361,8 +386,12 @@ class Game {
   _gameOver() {
     this.state = 'gameover';
     this.sound.silenceEngine();
-    this.particles.explosion(this.player.pos.clone().setY(this.player.pos.y + 1), 2.2);
+    const dp = this.player.pos;
+    this.particles.explosion(dp.clone().setY(dp.y + 1), 2.4);
+    this.debris.burst(dp.x, dp.y + 0.4, dp.z, [0.54, 0.49, 0.18], 34, 12);
+    this.player.group.visible = false;
     this.sound.explosion(2);
+    this.shake = 1.2;
     document.exitPointerLock?.();
     this.touch.hide();
     this.hud.hide();

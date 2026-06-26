@@ -12,10 +12,14 @@ export class HUD {
     this.hitflash = document.getElementById('hitflash');
     this.vignette = document.getElementById('damage-vignette');
 
+    this.hitmarker = document.getElementById('hitmarker');
+    this.killfeed = document.getElementById('killfeed');
+
     this.mm = document.getElementById('minimap');
     this.mmx = this.mm.getContext('2d');
     this._vig = 0;
     this._flash = 0;
+    this._hit = 0;
   }
 
   show() { this.elHud.classList.remove('hidden'); this.elCross.classList.remove('hidden'); }
@@ -37,6 +41,17 @@ export class HUD {
 
   hitFlash() { this._flash = 0.5; }
   damage() { this._vig = 0.85; }
+  hitMarker() { this._hit = 0.3; }
+
+  killFeed(pts = 0) {
+    const line = document.createElement('div');
+    line.className = 'kill-line';
+    line.innerHTML = pts ? `击毁敌方坦克 <b>+${pts}</b>` : '击毁敌方坦克';
+    this.killfeed.appendChild(line);
+    setTimeout(() => line.remove(), 2600);
+    // 最多保留 5 条
+    while (this.killfeed.childElementCount > 5) this.killfeed.firstChild.remove();
+  }
 
   update(dt) {
     if (this._flash > 0) {
@@ -46,6 +61,12 @@ export class HUD {
     if (this._vig > 0) {
       this._vig = Math.max(0, this._vig - dt * 1.6);
       this.vignette.style.opacity = this._vig.toFixed(3);
+    }
+    if (this._hit > 0) {
+      this._hit = Math.max(0, this._hit - dt * 3);
+      const k = this._hit / 0.3;
+      this.hitmarker.style.opacity = k.toFixed(3);
+      this.hitmarker.style.transform = `translate(-50%,-50%) scale(${(1.6 - k * 0.6).toFixed(2)})`;
     }
   }
 

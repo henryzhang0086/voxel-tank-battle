@@ -42,7 +42,9 @@ export class Input {
   }
 
   requestLock() {
-    if (!this.locked) this.canvas.requestPointerLock();
+    try {
+      if (!this.locked) this.canvas.requestPointerLock?.();
+    } catch (e) { /* 无头/无手势环境忽略 */ }
   }
 
   isDown(code) {

@@ -11,6 +11,10 @@ const FACES = [
   { dir: [0, 0, 1], face: 'side', shade: 0.86, corners: [[0,0,1],[1,0,1],[1,1,1],[0,1,1]], normal: [0,0,1] },
   { dir: [0, 0,-1], face: 'side', shade: 0.60, corners: [[0,0,0],[0,1,0],[1,1,0],[1,0,0]], normal: [0,0,-1] },
 ];
+// 预计算每个面的两条切向轴（用于环境光遮蔽采样）
+for (const f of FACES) f.tax = [0, 1, 2].filter((a) => f.dir[a] === 0);
+// AO 等级 0..3 → 亮度（0 最暗，墙角越凹越暗）
+const AO_LUT = [0.46, 0.7, 0.86, 1.0];
 
 export class VoxelWorld {
   /**
@@ -157,6 +161,17 @@ export class VoxelWorld {
     return this.get(Math.floor(wx), Math.floor(wy), Math.floor(wz)) !== BLOCK.AIR;
   }
 
+  // AO 采样：在给定块坐标基础上沿某轴 / 两轴偏移后是否实心（越界视为空气）
+  _solidAxis(x, y, z, axis, s) {
+    if (axis === 0) x += s; else if (axis === 1) y += s; else z += s;
+    return this.inBounds(x, y, z) && this.data[this._idx(x, y, z)] !== BLOCK.AIR ? 1 : 0;
+  }
+  _solidAxis2(x, y, z, a0, s0, a1, s1) {
+    if (a0 === 0) x += s0; else if (a0 === 1) y += s0; else z += s0;
+    if (a1 === 0) x += s1; else if (a1 === 1) y += s1; else z += s1;
+    return this.inBounds(x, y, z) && this.data[this._idx(x, y, z)] !== BLOCK.AIR ? 1 : 0;
+  }
+
   // ---------- 破坏 ----------
   /**
    * 以球形挖空方块，返回被破坏的方块数量；标记受影响 chunk 重建。
@@ -233,12 +248,32 @@ export class VoxelWorld {
             const col = def[f.face];
             const sh = f.shade * jitter;
             const r = col[0] * sh, g = col[1] * sh, b = col[2] * sh;
-            for (const c of f.corners) {
+
+            // —— 逐顶点环境光遮蔽 ——
+            const a0 = f.tax[0], a1 = f.tax[1];
+            const ao = [0, 0, 0, 0];
+            for (let k = 0; k < 4; k++) {
+              const c = f.corners[k];
+              const s0 = c[a0] === 1 ? 1 : -1;
+              const s1 = c[a1] === 1 ? 1 : -1;
+              const side1 = this._solidAxis(nx, ny, nz, a0, s0);
+              const side2 = this._solidAxis(nx, ny, nz, a1, s1);
+              const corner = side1 && side2 ? 1 : this._solidAxis2(nx, ny, nz, a0, s0, a1, s1);
+              const level = side1 && side2 ? 0 : 3 - (side1 + side2 + corner);
+              ao[k] = AO_LUT[level];
+            }
+
+            for (let k = 0; k < 4; k++) {
+              const c = f.corners[k];
               positions.push(x + c[0], y + c[1], z + c[2]);
               normals.push(f.normal[0], f.normal[1], f.normal[2]);
-              colors.push(r, g, b);
+              colors.push(r * ao[k], g * ao[k], b * ao[k]);
             }
-            indices.push(vi, vi + 1, vi + 2, vi, vi + 2, vi + 3);
+            // 各向异性翻转：避免 AO 在四边形对角出现硬缝
+            if (ao[0] + ao[2] < ao[1] + ao[3])
+              indices.push(vi + 1, vi + 2, vi + 3, vi + 1, vi + 3, vi);
+            else
+              indices.push(vi, vi + 1, vi + 2, vi, vi + 2, vi + 3);
             vi += 4;
           }
         }

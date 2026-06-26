@@ -145,6 +145,31 @@ export class Particles {
       scene.add(l);
       this.lights.push({ light: l, t: 0 });
     }
+
+    // 冲击波环池
+    const rg = new THREE.RingGeometry(0.84, 1.0, 48);
+    rg.rotateX(-Math.PI / 2);
+    this.rings = [];
+    for (let i = 0; i < 6; i++) {
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0xffe2a8, transparent: true, opacity: 0, side: THREE.DoubleSide,
+        depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false,
+      });
+      const m = new THREE.Mesh(rg, mat);
+      m.visible = false; m.frustumCulled = false;
+      scene.add(m);
+      this.rings.push({ mesh: m, t: 0, max: 0.45, r1: 12 });
+    }
+    this._ringI = 0;
+  }
+
+  shockwave(pos, scale = 1) {
+    const e = this.rings[this._ringI];
+    this._ringI = (this._ringI + 1) % this.rings.length;
+    e.mesh.position.set(pos.x, pos.y + 0.4, pos.z);
+    e.mesh.visible = true;
+    e.t = e.max;
+    e.r1 = 9 + 9 * scale;
   }
 
   flash(pos, color = 0xffaa44, intensity = 8) {
@@ -184,6 +209,7 @@ export class Particles {
       );
     }
     this.flash(pos, 0xffa040, 9 * scale);
+    this.shockwave(pos, scale);
   }
 
   muzzle(pos, dir) {
@@ -239,11 +265,21 @@ export class Particles {
         if (e.t <= 0) e.light.intensity = 0;
       }
     }
+    for (const e of this.rings) {
+      if (!e.mesh.visible) continue;
+      e.t -= dt;
+      if (e.t <= 0) { e.mesh.visible = false; continue; }
+      const k = 1 - e.t / e.max;          // 0→1
+      const r = 1 + (e.r1 - 1) * k;
+      e.mesh.scale.set(r, 1, r);
+      e.mesh.material.opacity = (1 - k) * 0.8;
+    }
   }
 
   clear() {
     this.spark.clear();
     this.smoke.clear();
     for (const e of this.lights) { e.light.intensity = 0; e.t = 0; }
+    for (const e of this.rings) { e.mesh.visible = false; e.t = 0; }
   }
 }

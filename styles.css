@@ -121,3 +121,18 @@ body.touch .ch-ring{width:26px;height:26px}
   .btn-fire{right:20px;bottom:22px;width:100px;height:100px}
   .btn-sprint{right:134px;bottom:44px;width:66px;height:66px}
 }
+
+/* ---------- 打击反馈 ---------- */
+#hitmarker{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(1);
+  color:#fff;font-size:30px;font-weight:900;opacity:0;pointer-events:none;z-index:31;
+  text-shadow:0 0 8px rgba(255,90,60,.9),0 2px 4px #000}
+#killfeed{position:fixed;right:22px;top:96px;display:flex;flex-direction:column;gap:6px;
+  align-items:flex-end;pointer-events:none;z-index:22}
+.kill-line{padding:6px 14px;border-radius:8px;font-size:15px;font-weight:700;color:#fff;
+  background:linear-gradient(90deg,rgba(255,58,31,.05),rgba(255,58,31,.85));
+  border:1px solid rgba(255,120,90,.5);box-shadow:0 4px 14px rgba(0,0,0,.4);
+  animation:killIn .25s ease-out, killOut .5s ease-in 2s forwards;white-space:nowrap}
+.kill-line b{color:#ffd06b}
+@keyframes killIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+@keyframes killOut{to{opacity:0;transform:translateX(20px)}}
+body.touch #killfeed{top:200px;right:14px}
