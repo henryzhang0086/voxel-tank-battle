@@ -136,3 +136,18 @@ body.touch .ch-ring{width:26px;height:26px}
 @keyframes killIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
 @keyframes killOut{to{opacity:0;transform:translateX(20px)}}
 body.touch #killfeed{top:200px;right:14px}
+
+/* ---------- 波次 / Boss 横幅 ---------- */
+#banner{position:fixed;left:50%;top:30%;
+  transform:translate(-50%,-50%) scale(.8);opacity:0;pointer-events:none;z-index:25;
+  font-size:54px;font-weight:900;letter-spacing:6px;color:#fff;text-align:center;
+  text-shadow:0 0 24px rgba(255,90,40,.7),0 4px 12px #000;white-space:nowrap}
+#banner.show{animation:bannerPop 2.2s ease-out forwards}
+@keyframes bannerPop{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.7)}
+  14%{opacity:1;transform:translate(-50%,-50%) scale(1.05)}
+  24%{transform:translate(-50%,-50%) scale(1)}
+  78%{opacity:1}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(1)}
+}
+body.touch #banner{font-size:34px}

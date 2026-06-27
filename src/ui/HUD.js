@@ -14,6 +14,7 @@ export class HUD {
 
     this.hitmarker = document.getElementById('hitmarker');
     this.killfeed = document.getElementById('killfeed');
+    this.bannerEl = document.getElementById('banner');
 
     this.mm = document.getElementById('minimap');
     this.mmx = this.mm.getContext('2d');
@@ -43,14 +44,21 @@ export class HUD {
   damage() { this._vig = 0.85; }
   hitMarker() { this._hit = 0.3; }
 
-  killFeed(pts = 0) {
+  killFeed(pts = 0, name = '敌方坦克') {
     const line = document.createElement('div');
     line.className = 'kill-line';
-    line.innerHTML = pts ? `击毁敌方坦克 <b>+${pts}</b>` : '击毁敌方坦克';
+    line.innerHTML = `击毁 ${name}坦克 <b>+${pts}</b>`;
     this.killfeed.appendChild(line);
     setTimeout(() => line.remove(), 2600);
-    // 最多保留 5 条
     while (this.killfeed.childElementCount > 5) this.killfeed.firstChild.remove();
+  }
+
+  banner(text) {
+    if (!this.bannerEl) return;
+    this.bannerEl.textContent = text;
+    this.bannerEl.classList.remove('show');
+    void this.bannerEl.offsetWidth;   // 重启动画
+    this.bannerEl.classList.add('show');
   }
 
   update(dt) {

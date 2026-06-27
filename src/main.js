@@ -3,7 +3,7 @@ import { Engine } from './core/Engine.js';
 import { Input } from './core/Input.js';
 import { VoxelWorld } from './world/VoxelWorld.js';
 import { Tank } from './entities/Tank.js';
-import { EnemyTank } from './entities/EnemyTank.js';
+import { EnemyTank, ENEMY_TYPES } from './entities/EnemyTank.js';
 import { ShellManager } from './entities/Shell.js';
 import { Particles } from './fx/Particles.js';
 import { Debris } from './fx/Debris.js';
@@ -17,7 +17,6 @@ const SPRINT = 1.6;
 const RELOAD = 0.85;             // 玩家主炮装填秒数
 const PLAYER_SHELL_SPEED = 62;
 const PLAYER_DMG = 58;
-const ENEMY_DMG = 16;
 const MOUSE_SENS = 0.0022;
 const TOUCH_LOOK_SENS = 0.006;
 const CAM_DIST = 9.5;
@@ -136,15 +135,44 @@ class Game {
   }
 
   // ---------- 波次 ----------
-  _nextWave() {
-    this.wave++;
-    const count = 2 + this.wave;
-    for (let i = 0; i < count; i++) this._spawnEnemy(this.wave);
-    this.hud.setWave(this.wave);
-    this.hud.setEnemies(this.enemies.length);
+  _waveComposition(wave) {
+    // 按波次配兵：逐步引入更强兵种，每 5 波出 Boss
+    const list = [];
+    if (wave % 5 === 0) {
+      list.push('boss');
+      const adds = Math.min(4, 1 + Math.floor(wave / 5));
+      for (let i = 0; i < adds; i++) list.push(Math.random() < 0.5 ? 'scout' : 'standard');
+      return list;
+    }
+    const total = 2 + wave;
+    for (let i = 0; i < total; i++) {
+      const r = Math.random();
+      let t = 'standard';
+      if (wave <= 1) t = r < 0.5 ? 'scout' : 'standard';
+      else if (wave === 2) t = r < 0.4 ? 'scout' : 'standard';
+      else if (wave === 3) t = r < 0.3 ? 'scout' : r < 0.85 ? 'standard' : 'heavy';
+      else {
+        if (r < 0.22) t = 'scout';
+        else if (r < 0.58) t = 'standard';
+        else if (r < 0.8) t = 'heavy';
+        else t = 'artillery';
+      }
+      list.push(t);
+    }
+    return list;
   }
 
-  _spawnEnemy(level) {
+  _nextWave() {
+    this.wave++;
+    const comp = this._waveComposition(this.wave);
+    for (const typeKey of comp) this._spawnEnemy(typeKey, this.wave);
+    this.hud.setWave(this.wave);
+    this.hud.setEnemies(this.enemies.length);
+    if (this.wave % 5 === 0) this.hud.banner('⚠ 警告：巨型坦克来袭');
+    else this.hud.banner('第 ' + this.wave + ' 波');
+  }
+
+  _spawnEnemy(typeKey, level) {
     const w = this.world;
     let x, z, tries = 0;
     do {
@@ -156,7 +184,7 @@ class Game {
     } while ((x < 4 || z < 4 || x > w.SX - 4 || z > w.SZ - 4) && tries < 12);
     x = Math.max(4, Math.min(w.SX - 4, x));
     z = Math.max(4, Math.min(w.SZ - 4, z));
-    const e = new EnemyTank(w, level);
+    const e = new EnemyTank(w, typeKey, level);
     e.setPosition(x, w.heightAt(x, z), z);
     e.groundClamp();
     e.addTo(this.engine.scene);
@@ -272,7 +300,7 @@ class Game {
     const p = this.player;
     p.getMuzzleWorld(this._muzzle);
     this._shellDir.copy(this._aim).sub(this._muzzle).normalize();
-    this.shells.spawn(this._muzzle, this._shellDir, PLAYER_SHELL_SPEED, false);
+    this.shells.spawn(this._muzzle, this._shellDir, PLAYER_SHELL_SPEED, false, PLAYER_DMG);
     this.particles.muzzle(this._muzzle, this._shellDir);
     this.sound.cannon();
     p.recoil = 0.5;
@@ -287,8 +315,8 @@ class Game {
   }
 
   _updateEnemies(dt) {
-    const fire = (pos, dir, speed, isEnemy) => {
-      this.shells.spawn(pos, dir, speed, isEnemy);
+    const fire = (pos, dir, speed, isEnemy, damage) => {
+      this.shells.spawn(pos, dir, speed, isEnemy, damage);
       this.particles.muzzle(pos, dir);
       this.sound.enemyCannon();
     };
@@ -299,12 +327,12 @@ class Game {
     const tanks = [this.player, ...this.enemies];
     this.shells.update(
       dt, tanks,
-      (pos, ownerIsEnemy) => this._explode(pos, ownerIsEnemy),
+      (pos, ownerIsEnemy, damage) => this._explode(pos, ownerIsEnemy, damage),
       (pos) => this.particles.trail(pos),
     );
   }
 
-  _explode(pos, ownerIsEnemy) {
+  _explode(pos, ownerIsEnemy, damage = 16) {
     // 1) 地形破坏
     const destroyed = this.world.removeSphere(pos.x, pos.y, pos.z, CRATER_RADIUS);
     // 2) 特效 + 音效
@@ -321,8 +349,7 @@ class Game {
       const d = Math.hypot(dx, dy, dz);
       if (d > BLAST_RADIUS) continue;
       const falloff = 1 - d / BLAST_RADIUS;
-      const base = ownerIsEnemy ? ENEMY_DMG : PLAYER_DMG;
-      const killed = t.damage(base * falloff);
+      const killed = t.damage(damage * falloff);
       if (t === this.player) {
         this.hud.damage();
         this.sound.pickHurt();
@@ -343,14 +370,21 @@ class Game {
 
   _killEnemy(e) {
     const at = e.pos.clone(); at.y += 1.0;
-    this.particles.explosion(at, 1.6);
-    this.debris.burst(at.x, e.pos.y + 0.4, at.z, [0.62, 0.24, 0.17], 28, 11);
-    this.sound.explosion(1.4);
+    const isBoss = e.typeKey === 'boss';
+    const sc = e.spec.scale ?? 1;
+    const col = e.spec.colors.body;
+    const rgb = [((col >> 16) & 255) / 255, ((col >> 8) & 255) / 255, (col & 255) / 255];
+
+    this.particles.explosion(at, 1.4 + sc * 0.6);
+    this.debris.burst(at.x, e.pos.y + 0.4, at.z, rgb, Math.round(24 * sc) + 8, 9 + sc * 3, [0.4 * sc, 1.0 * sc]);
+    this.sound.explosion(1.2 + sc * 0.4);
+    if (isBoss) { this.shake = Math.max(this.shake, 1.0); this.hud.banner('巨型坦克已摧毁！'); }
+
     e.alive = false;
     e.group.visible = false;
-    const pts = 100 * this.wave;
+    const pts = (e.score || 100) * (1 + (this.wave - 1) * 0.2) | 0;
     this.score += pts;
-    this.hud.killFeed(pts);
+    this.hud.killFeed(pts, e.type.name);
     this.hud.setScore(this.score);
   }
 

@@ -20,7 +20,7 @@ export class ShellManager {
     this._tmp = new THREE.Vector3();
   }
 
-  spawn(pos, dir, speed, ownerIsEnemy) {
+  spawn(pos, dir, speed, ownerIsEnemy, damage = 16) {
     const mesh = new THREE.Mesh(this.geo, ownerIsEnemy ? this.enemyMat : this.playerMat);
     mesh.position.copy(pos);
     this.scene.add(mesh);
@@ -29,6 +29,7 @@ export class ShellManager {
       vel: dir.clone().multiplyScalar(speed),
       life: 0,
       ownerIsEnemy,
+      damage,
       prev: pos.clone(),
     });
   }
@@ -80,7 +81,7 @@ export class ShellManager {
       }
 
       if (exploded) {
-        onExplode(p.clone(), s.ownerIsEnemy);
+        onExplode(p.clone(), s.ownerIsEnemy, s.damage);
         this.scene.remove(s.mesh);
         this.shells.splice(i, 1);
       }

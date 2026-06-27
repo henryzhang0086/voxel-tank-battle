@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 
-const mat = (hex, opts = {}) =>
-  new THREE.MeshLambertMaterial({ color: hex, ...opts });
+const mat = (hex) => new THREE.MeshLambertMaterial({ color: hex });
 
 function box(w, h, d, material) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
@@ -11,54 +10,51 @@ function box(w, h, d, material) {
 }
 
 /**
- * 用方块拼出一辆坦克。返回 { group, hull, turret, barrelPivot, muzzle }
- * 朝向约定：炮管指向 +Z；turret/hull 的 rotation.y 控制偏航。
+ * 用方块拼出一辆坦克（可按 spec 调整车宽/炮管长度/配色，做出不同兵种轮廓）。
+ * 返回 { group, hull, turret, barrelPivot, muzzle }；炮管指向 +Z。
  */
-export function buildTankModel(colors) {
+export function buildTankModel(spec) {
+  const c = spec.colors;
+  const bodyW = spec.bodyW ?? 2.5;
+  const barrelLen = spec.barrelLen ?? 2.6;
+  const barrelThick = spec.barrelThick ?? 0.32;
+
   const group = new THREE.Group();
+  const bodyMat = mat(c.body), trackMat = mat(c.track), detailMat = mat(c.detail);
+  const turretMat = mat(c.turret), barrelMat = mat(c.barrel ?? c.detail);
 
-  // ---- 车体 + 履带（随车身偏航） ----
+  // ---- 车体 + 履带 ----
   const hull = new THREE.Group();
-  const bodyMat = mat(colors.body);
-  const trackMat = mat(colors.track);
-  const detailMat = mat(colors.detail);
-
-  const body = box(2.5, 0.7, 3.4, bodyMat);
+  const body = box(bodyW, 0.7, 3.4, bodyMat);
   body.position.y = 0.75;
   hull.add(body);
 
-  // 前装甲斜板（用一个略小的盒子叠出层次）
-  const glacis = box(2.3, 0.5, 0.9, bodyMat);
+  const glacis = box(bodyW - 0.2, 0.5, 0.9, bodyMat);
   glacis.position.set(0, 1.05, 1.45);
   hull.add(glacis);
 
+  const tx = bodyW / 2;
   for (const side of [-1, 1]) {
     const track = box(0.7, 0.85, 3.7, trackMat);
-    track.position.set(side * 1.25, 0.45, 0);
+    track.position.set(side * tx, 0.45, 0);
     hull.add(track);
-    // 负重轮装饰
     for (let i = -1; i <= 1; i++) {
       const wheel = box(0.78, 0.5, 0.5, detailMat);
-      wheel.position.set(side * 1.25, 0.4, i * 1.05);
+      wheel.position.set(side * tx, 0.4, i * 1.05);
       hull.add(wheel);
     }
   }
   group.add(hull);
 
-  // ---- 炮塔（独立偏航，挂在 group 上） ----
+  // ---- 炮塔 ----
   const turret = new THREE.Group();
   turret.position.y = 1.25;
-  const turretMat = mat(colors.turret);
-  const dome = box(1.7, 0.8, 1.8, turretMat);
+  const dome = box(bodyW * 0.68, 0.8, 1.8, turretMat);
   dome.position.y = 0.4;
   turret.add(dome);
-
-  // 炮塔后舱
-  const bustle = box(1.3, 0.5, 0.8, turretMat);
+  const bustle = box(bodyW * 0.52, 0.5, 0.8, turretMat);
   bustle.position.set(0, 0.4, -1.0);
   turret.add(bustle);
-
-  // 指挥塔 / 天线座
   const cupola = box(0.7, 0.4, 0.7, detailMat);
   cupola.position.set(-0.3, 0.85, -0.2);
   turret.add(cupola);
@@ -66,16 +62,15 @@ export function buildTankModel(colors) {
   // ---- 炮管（俯仰） ----
   const barrelPivot = new THREE.Group();
   barrelPivot.position.set(0, 0.45, 0.7);
-  const barrel = box(0.32, 0.32, 2.6, detailMat);
-  barrel.position.z = 1.3;
+  const barrel = box(barrelThick, barrelThick, barrelLen, barrelMat);
+  barrel.position.z = barrelLen / 2;
   barrelPivot.add(barrel);
-  const muzzleBrake = box(0.46, 0.46, 0.5, trackMat);
-  muzzleBrake.position.z = 2.45;
+  const muzzleBrake = box(barrelThick * 1.45, barrelThick * 1.45, 0.5, trackMat);
+  muzzleBrake.position.z = barrelLen - 0.1;
   barrelPivot.add(muzzleBrake);
 
-  // 枪口位置标记（取世界坐标用）
   const muzzle = new THREE.Object3D();
-  muzzle.position.z = 2.75;
+  muzzle.position.z = barrelLen + 0.2;
   barrelPivot.add(muzzle);
 
   turret.add(barrelPivot);
@@ -84,22 +79,28 @@ export function buildTankModel(colors) {
   return { group, hull, turret, barrelPivot, muzzle };
 }
 
-const PLAYER_COLORS = { body: 0x5a6b3a, turret: 0x4f6033, track: 0x2b2f26, detail: 0x3a4528 };
-const ENEMY_COLORS  = { body: 0x7a3326, turret: 0x6e2c20, track: 0x2a201d, detail: 0x4a1f17 };
+// 玩家坦克规格
+export const PLAYER_SPEC = {
+  colors: { body: 0x5a6b3a, turret: 0x4f6033, track: 0x2b2f26, detail: 0x3a4528, barrel: 0x8a9080 },
+  scale: 1.0, bodyW: 2.5, barrelLen: 2.6, barrelThick: 0.32, radius: 1.8,
+};
 
 /**
  * 坦克基类：持有模型与状态，提供地形跟随、瞄准同步、枪口坐标。
  */
 export class Tank {
-  constructor(world, { isEnemy = false } = {}) {
+  constructor(world, { isEnemy = false, spec = PLAYER_SPEC } = {}) {
     this.world = world;
     this.isEnemy = isEnemy;
-    const model = buildTankModel(isEnemy ? ENEMY_COLORS : PLAYER_COLORS);
+    this.spec = spec;
+
+    const model = buildTankModel(spec);
     this.group = model.group;
     this.hull = model.hull;
     this.turret = model.turret;
     this.barrelPivot = model.barrelPivot;
     this.muzzle = model.muzzle;
+    this.group.scale.setScalar(spec.scale ?? 1);
 
     this.pos = new THREE.Vector3();
     this.vel = new THREE.Vector3();
@@ -107,12 +108,13 @@ export class Tank {
     this.turretYaw = 0;
     this.barrelPitch = 0.05;
 
-    this.maxHp = isEnemy ? 100 : 100;
+    this.maxHp = spec.hp ?? 100;
     this.hp = this.maxHp;
     this.alive = true;
-    this.radius = 1.8;        // 碰撞半径
+    this.radius = spec.radius ?? 1.8;
+    this.climb = 1.2;          // 可攀爬的最大台阶高度（方块数）
     this.fireCooldown = 0;
-    this.recoil = 0;          // 后坐可视化
+    this.recoil = 0;
   }
 
   addTo(scene) { scene.add(this.group); }
@@ -122,10 +124,9 @@ export class Tank {
     this.group.position.copy(this.pos);
   }
 
-  /** 把坦克贴合到当前 (x,z) 地形顶面（取四角最高，稳定） */
   groundClamp(smooth = 0) {
     const w = this.world;
-    const r = 1.1;
+    const r = 1.1 * (this.spec.scale ?? 1);
     const h = Math.max(
       w.heightAt(this.pos.x - r, this.pos.z - r),
       w.heightAt(this.pos.x + r, this.pos.z - r),
@@ -137,26 +138,36 @@ export class Tank {
     else this.pos.y = target;
   }
 
-  /** 试图把 hull 朝某方向平移，遇到过高的墙则被阻挡。返回是否移动 */
-  tryMove(dx, dz) {
+  /** 某点是否可踏上（在界内且台阶不超过可攀爬高度） */
+  _canStep(nx, nz) {
     const w = this.world;
-    const nx = this.pos.x + dx;
-    const nz = this.pos.z + dz;
     if (nx < 1 || nz < 1 || nx > w.SX - 1 || nz > w.SZ - 1) return false;
-    const cur = w.heightAt(this.pos.x, this.pos.z);
-    const ahead = w.heightAt(nx, nz);
-    if (ahead - cur > 1.2) return false; // 台阶过高 = 墙，挡住
-    this.pos.x = nx;
-    this.pos.z = nz;
-    return true;
+    return w.heightAt(nx, nz) - w.heightAt(this.pos.x, this.pos.z) <= this.climb;
   }
 
-  /** 把状态写入模型变换 */
+  /**
+   * 平移 + 撞墙沿墙滑行（分轴回退），不再正面卡死 → 通行顺畅。
+   * 返回是否产生了位移。
+   */
+  tryMove(dx, dz) {
+    if (this._canStep(this.pos.x + dx, this.pos.z + dz)) {
+      this.pos.x += dx; this.pos.z += dz;
+      return true;
+    }
+    let moved = false;
+    if (Math.abs(dx) > 1e-5 && this._canStep(this.pos.x + dx, this.pos.z)) {
+      this.pos.x += dx; moved = true;
+    }
+    if (Math.abs(dz) > 1e-5 && this._canStep(this.pos.x, this.pos.z + dz)) {
+      this.pos.z += dz; moved = true;
+    }
+    return moved;
+  }
+
   syncModel() {
     this.group.position.copy(this.pos);
     this.hull.rotation.y = this.hullYaw;
     this.turret.rotation.y = this.turretYaw;
-    // 后坐：炮管短暂回缩
     this.barrelPivot.rotation.x = -this.barrelPitch;
     this.barrelPivot.position.z = 0.7 - this.recoil;
     if (this.recoil > 0) this.recoil = Math.max(0, this.recoil - 0.12);
@@ -166,7 +177,6 @@ export class Tank {
     return this.muzzle.getWorldPosition(out);
   }
 
-  /** 炮口前向（世界） */
   getAimDir(out) {
     out.set(
       Math.sin(this.turretYaw) * Math.cos(this.barrelPitch),
@@ -179,15 +189,9 @@ export class Tank {
   damage(amount) {
     if (!this.alive) return false;
     this.hp -= amount;
-    if (this.hp <= 0) {
-      this.hp = 0;
-      this.alive = false;
-      return true; // 被击毁
-    }
+    if (this.hp <= 0) { this.hp = 0; this.alive = false; return true; }
     return false;
   }
 
-  dispose(scene) {
-    scene.remove(this.group);
-  }
+  dispose(scene) { scene.remove(this.group); }
 }
