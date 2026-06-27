@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Engine } from './core/Engine.js';
 import { Input } from './core/Input.js';
 import { VoxelWorld } from './world/VoxelWorld.js';
-import { Tank } from './entities/Tank.js';
+import { Tank, PLAYER_TYPES } from './entities/Tank.js';
 import { EnemyTank, ENEMY_TYPES } from './entities/EnemyTank.js';
 import { ShellManager } from './entities/Shell.js';
 import { Particles } from './fx/Particles.js';
@@ -12,16 +12,11 @@ import { HUD } from './ui/HUD.js';
 import { TouchControls } from './ui/TouchControls.js';
 
 // ---------- 可调参数 ----------
-const MOVE_SPEED = 13;
-const SPRINT = 1.6;
-const RELOAD = 0.85;             // 玩家主炮装填秒数
-const PLAYER_SHELL_SPEED = 62;
-const PLAYER_DMG = 58;
 const MOUSE_SENS = 0.0022;
 const TOUCH_LOOK_SENS = 0.006;
 const CAM_DIST = 9.5;
-const BLAST_RADIUS = 4.0;        // 溅射伤害半径
-const CRATER_RADIUS = 2.3;       // 地形破坏半径
+const ENEMY_BLAST = 4.0;         // 敌方炮弹默认溅射半径
+const ENEMY_CRATER = 2.3;        // 敌方炮弹默认破坏半径
 
 class Game {
   constructor() {
@@ -55,6 +50,10 @@ class Game {
     this.fovKick = 0;                  // 开炮 FOV 顿挫
     this.curFov = this.engine.baseFov; // 平滑后的当前 FOV
     this.sprinting = false;
+    this.playerType = 'standard';      // 当前所选车型
+    this.pStats = PLAYER_TYPES.standard.stats;
+    this.camDist = CAM_DIST;
+    this.menuAngle = 0;                 // 选车展厅旋转
     this.wave = 0;
     this.score = 0;
     this.cooldown = 0;
@@ -93,16 +92,78 @@ class Game {
     this.shells = new ShellManager(this.engine.scene, this.world);
     this.debris = new Debris(this.engine.scene, this.world);
 
-    this.player = new Tank(this.world, { isEnemy: false });
-    const c = this.world.centerSpawn;
-    this.player.setPosition(c.x, c.y, c.z);
-    this.player.groundClamp();
-    this.player.addTo(this.engine.scene);
+    this._setPlayerType(this.playerType);
+    this._buildTankCards();
 
-    document.getElementById('loading-hint').textContent = '战场已就绪 — 点击「开始战斗」';
+    document.getElementById('loading-hint').textContent = '选择坦克 — 点击「开始战斗」';
 
     // 调试：?auto 自动开局（用于无头截图验证渲染管线）
     if (location.search.includes('auto')) requestAnimationFrame(() => this.start());
+  }
+
+  /** 创建/替换玩家坦克（切换车型时重建模型），并刷新数值与镜头距离 */
+  _setPlayerType(typeKey) {
+    const def = PLAYER_TYPES[typeKey] || PLAYER_TYPES.standard;
+    this.playerType = typeKey;
+    this.pStats = def.stats;
+    this.camDist = CAM_DIST * (0.86 + (def.scale ?? 1) * 0.32);
+
+    const c = this.world.centerSpawn;
+    const keepYaw = this.player ? this.player.hullYaw : 0;
+    if (this.player) this.player.dispose(this.engine.scene);
+    this.player = new Tank(this.world, { isEnemy: false, spec: def });
+    this.player.typeKey = typeKey;
+    this.player.hullYaw = keepYaw;
+    this.player.setPosition(c.x, c.y, c.z);
+    this.player.groundClamp();
+    this.player.addTo(this.engine.scene);
+  }
+
+  /** 生成选车卡片（含机动/装甲/火力/射速评级） */
+  _buildTankCards() {
+    const wrap = document.getElementById('tank-cards');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    const pips = (n) => {
+      let s = '';
+      for (let i = 0; i < 5; i++) s += `<i class="${i < n ? 'on' : ''}"></i>`;
+      return s;
+    };
+    const row = (label, n) => `<div class="stat"><span>${label}</span><div class="pips">${pips(n)}</div></div>`;
+    for (const [key, def] of Object.entries(PLAYER_TYPES)) {
+      const card = document.createElement('button');
+      card.className = 'tank-card' + (key === this.playerType ? ' selected' : '');
+      card.dataset.key = key;
+      const r = def.ratings;
+      card.innerHTML =
+        `<div class="tc-name">${def.name}<small>${def.en}</small></div>` +
+        `<div class="tc-desc">${def.desc}</div>` +
+        `<div class="tc-stats">${row('机动', r.mobility)}${row('装甲', r.armor)}${row('火力', r.firepower)}${row('射速', r.fireRate)}</div>`;
+      card.addEventListener('click', () => {
+        if (this.playerType === key) return;
+        this._setPlayerType(key);
+        this.sound.init(); this.sound.hit();
+        for (const ch of wrap.children) ch.classList.toggle('selected', ch.dataset.key === key);
+      });
+      wrap.appendChild(card);
+    }
+  }
+
+  /** 选车展厅：镜头环绕展示当前坦克 */
+  _updateMenuCamera(dt) {
+    this.menuAngle += dt * 0.4;
+    const p = this.player.pos;
+    const sc = this.player.spec.scale ?? 1;
+    const r = 8 + sc * 2.8, h = 2.4 + sc * 1.2;
+    const cam = this.engine.camera;
+    // 视点压到坦克下方，让坦克落在面板上方的可见区
+    cam.position.set(p.x + Math.cos(this.menuAngle) * r, p.y + h, p.z + Math.sin(this.menuAngle) * r);
+    cam.lookAt(p.x, p.y - 2.4, p.z);
+    this.engine.setFov(this.engine.baseFov);
+    this.engine.followSun(p);
+    this.player.turretYaw = this.menuAngle + Math.PI * 0.5;
+    this.player.barrelPitch = 0.06;
+    this.player.syncModel();
   }
 
   start() {
@@ -196,6 +257,7 @@ class Game {
     requestAnimationFrame(() => this._loop());
     const dt = Math.min(0.05, this.clock.getDelta());
     if (this.state === 'playing') this._update(dt);
+    else if (this.state === 'menu' && this.player) this._updateMenuCamera(dt);
     this.particles.update(dt);
     if (this.debris) this.debris.update(dt);
     this.hud.update(dt);
@@ -266,13 +328,14 @@ class Game {
       ix *= inv; iz *= inv;
       const sprintOn =
         this.input.isDown('ShiftLeft') || this.input.isDown('ShiftRight') || this.touch.sprint;
-      const sprint = sprintOn ? SPRINT : 1;
-      const step = MOVE_SPEED * sprint * dt * mag;
+      const sprintMul = this.pStats.sprint;
+      const sprint = sprintOn ? sprintMul : 1;
+      const step = this.pStats.moveSpeed * sprint * dt * mag;
       const moved = p.tryMove(ix * step, iz * step);
       // 车身朝向平滑转向移动方向
       const targetHull = Math.atan2(ix, iz);
       p.hullYaw = this._angleLerp(p.hullYaw, targetHull, 6 * dt);
-      speed01 = moved ? (sprint / SPRINT) * mag : 0;
+      speed01 = moved ? (sprint / sprintMul) * mag : 0;
       this.sprinting = sprintOn && moved;
       if (moved) {
         this.movedDist += step;
@@ -293,20 +356,20 @@ class Game {
     // —— 开火 ——
     this.cooldown = Math.max(0, this.cooldown - dt);
     if ((this.input.firing || this.touch.firing) && this.cooldown <= 0) this._playerFire();
-    this.hud.setReload(1 - this.cooldown / RELOAD, this.cooldown <= 0);
+    this.hud.setReload(1 - this.cooldown / this.pStats.reload, this.cooldown <= 0);
   }
 
   _playerFire() {
     const p = this.player;
     p.getMuzzleWorld(this._muzzle);
     this._shellDir.copy(this._aim).sub(this._muzzle).normalize();
-    this.shells.spawn(this._muzzle, this._shellDir, PLAYER_SHELL_SPEED, false, PLAYER_DMG);
+    this.shells.spawn(this._muzzle, this._shellDir, this.pStats.shellSpeed, false, this.pStats.dmg);
     this.particles.muzzle(this._muzzle, this._shellDir);
     this.sound.cannon();
     p.recoil = 0.5;
     this.shake = Math.max(this.shake, 0.25);
     this.fovKick = Math.max(this.fovKick, 7);
-    this.cooldown = RELOAD;
+    this.cooldown = this.pStats.reload;
   }
 
   _treadDust(p) {
@@ -333,8 +396,12 @@ class Game {
   }
 
   _explode(pos, ownerIsEnemy, damage = 16) {
+    // 玩家炮弹用所选车型的破坏/溅射半径，敌方用默认
+    const craterR = ownerIsEnemy ? ENEMY_CRATER : this.pStats.craterR;
+    const blastR = ownerIsEnemy ? ENEMY_BLAST : this.pStats.blastR;
+
     // 1) 地形破坏
-    const destroyed = this.world.removeSphere(pos.x, pos.y, pos.z, CRATER_RADIUS);
+    const destroyed = this.world.removeSphere(pos.x, pos.y, pos.z, craterR);
     // 2) 特效 + 音效
     const scale = 1 + Math.min(0.6, destroyed * 0.01);
     this.particles.explosion(pos, scale);
@@ -347,8 +414,8 @@ class Game {
       if (!t.alive) continue;
       const dx = t.pos.x - pos.x, dy = (t.pos.y + 1) - pos.y, dz = t.pos.z - pos.z;
       const d = Math.hypot(dx, dy, dz);
-      if (d > BLAST_RADIUS) continue;
-      const falloff = 1 - d / BLAST_RADIUS;
+      if (d > blastR) continue;
+      const falloff = 1 - d / blastR;
       const killed = t.damage(damage * falloff);
       if (t === this.player) {
         this.hud.damage();
@@ -396,7 +463,7 @@ class Game {
     const targetFov = this.engine.baseFov + (this.sprinting ? 6 : 0) + this.fovKick;
     this.curFov += (targetFov - this.curFov) * Math.min(1, dt * 12);
     this.engine.setFov(this.curFov);
-    const dolly = CAM_DIST + this.fovKick * 0.06;
+    const dolly = this.camDist + this.fovKick * 0.06;
 
     this._camTarget.copy(this.player.pos); this._camTarget.y += 2.2;
     this._camPos.copy(this._camTarget).addScaledVector(this._dir, -dolly);

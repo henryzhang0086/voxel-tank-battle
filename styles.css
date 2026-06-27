@@ -151,3 +151,32 @@ body.touch #killfeed{top:200px;right:14px}
   100%{opacity:0;transform:translate(-50%,-50%) scale(1)}
 }
 body.touch #banner{font-size:34px}
+
+/* ---------- 选车菜单（展厅 + 卡片） ---------- */
+#menu{align-items:flex-end;
+  background:linear-gradient(to bottom,rgba(8,10,16,.10),rgba(8,10,16,.45) 40%,rgba(5,7,11,.95) 76%)}
+#menu .panel{width:min(96vw,880px);margin-bottom:26px;padding:22px 30px 24px;text-align:center}
+#menu .panel h1{font-size:42px}
+#menu .subtitle{font-size:12px;letter-spacing:6px}
+.select-label{margin:16px 0 12px;font-size:14px;letter-spacing:4px;color:#9aa6b6}
+.tank-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.tank-card{appearance:none;cursor:pointer;pointer-events:auto;text-align:left;color:#cfd6e0;
+  background:rgba(26,32,42,.7);border:1.5px solid rgba(255,255,255,.1);border-radius:12px;
+  padding:14px 14px 12px;transition:transform .12s,border-color .12s,box-shadow .12s;font-family:inherit}
+.tank-card:hover{transform:translateY(-3px);border-color:rgba(255,179,62,.5)}
+.tank-card.selected{border-color:var(--accent);box-shadow:0 0 0 2px rgba(255,179,62,.35),0 10px 26px rgba(255,179,62,.18);
+  background:rgba(40,34,20,.7)}
+.tc-name{font-size:20px;font-weight:800;color:#fff;display:flex;align-items:baseline;gap:8px}
+.tc-name small{font-size:11px;font-weight:600;letter-spacing:2px;color:var(--accent)}
+.tc-desc{font-size:12px;line-height:1.5;color:#9aa6b6;margin:6px 0 10px;min-height:36px}
+.tc-stats{display:flex;flex-direction:column;gap:5px}
+.tc-stats .stat{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:#aeb9c8}
+.pips{display:flex;gap:3px}
+.pips i{width:14px;height:6px;border-radius:3px;background:rgba(255,255,255,.14)}
+.pips i.on{background:linear-gradient(90deg,#ffd06b,#ff7a3c)}
+@media(max-width:680px){
+  .tank-cards{grid-template-columns:repeat(2,1fr)}
+  #menu .panel h1{font-size:32px}
+  .tc-desc{min-height:48px}
+  #menu .panel{padding:16px 18px 18px}
+}

@@ -79,11 +79,40 @@ export function buildTankModel(spec) {
   return { group, hull, turret, barrelPivot, muzzle };
 }
 
-// 玩家坦克规格
-export const PLAYER_SPEC = {
-  colors: { body: 0x5a6b3a, turret: 0x4f6033, track: 0x2b2f26, detail: 0x3a4528, barrel: 0x8a9080 },
-  scale: 1.0, bodyW: 2.5, barrelLen: 2.6, barrelThick: 0.32, radius: 1.8,
+// 玩家可选车型：差异化机动/装甲/火力/射速，stats 提供给主控
+export const PLAYER_TYPES = {
+  standard: {
+    name: '中坚', en: 'VANGUARD', desc: '均衡可靠，攻防俱佳的主战坦克',
+    colors: { body: 0x5a6b3a, turret: 0x4f6033, track: 0x2b2f26, detail: 0x3a4528, barrel: 0x8a9080 },
+    scale: 1.0, bodyW: 2.5, barrelLen: 2.6, barrelThick: 0.32, radius: 1.8, hp: 100,
+    stats: { moveSpeed: 13, sprint: 1.6, reload: 0.85, shellSpeed: 62, dmg: 58, craterR: 2.3, blastR: 4.0 },
+    ratings: { mobility: 3, armor: 3, firepower: 3, fireRate: 3 },
+  },
+  light: {
+    name: '猎兵', en: 'RAPTOR', desc: '高速轻甲，速射近战，打了就跑',
+    colors: { body: 0x4a7c59, turret: 0x3f6e4d, track: 0x222a22, detail: 0x2c4a34, barrel: 0xaab09a },
+    scale: 0.85, bodyW: 2.3, barrelLen: 2.3, barrelThick: 0.27, radius: 1.55, hp: 70,
+    stats: { moveSpeed: 17.5, sprint: 1.7, reload: 0.5, shellSpeed: 74, dmg: 34, craterR: 1.8, blastR: 3.2 },
+    ratings: { mobility: 5, armor: 1, firepower: 2, fireRate: 5 },
+  },
+  heavy: {
+    name: '铁壁', en: 'BULWARK', desc: '重装厚甲，缓慢但极其耐打、重炮',
+    colors: { body: 0x4a4f57, turret: 0x3f444b, track: 0x202327, detail: 0x33373d, barrel: 0xbfc4b2 },
+    scale: 1.35, bodyW: 2.8, barrelLen: 3.0, barrelThick: 0.46, radius: 2.3, hp: 200,
+    stats: { moveSpeed: 9.5, sprint: 1.35, reload: 1.3, shellSpeed: 58, dmg: 98, craterR: 2.9, blastR: 4.8 },
+    ratings: { mobility: 1, armor: 5, firepower: 5, fireRate: 2 },
+  },
+  sniper: {
+    name: '狙击', en: 'LANCER', desc: '超远平射，单发剧伤，装填缓慢的玻璃炮',
+    colors: { body: 0x7a6a36, turret: 0x6b5d30, track: 0x262019, detail: 0x4a3e20, barrel: 0xc6cab0 },
+    scale: 1.0, bodyW: 2.4, barrelLen: 3.8, barrelThick: 0.3, radius: 1.8, hp: 80,
+    stats: { moveSpeed: 11.5, sprint: 1.5, reload: 1.55, shellSpeed: 105, dmg: 130, craterR: 3.0, blastR: 4.6 },
+    ratings: { mobility: 2, armor: 2, firepower: 5, fireRate: 1 },
+  },
 };
+
+// 默认 / 向后兼容
+export const PLAYER_SPEC = PLAYER_TYPES.standard;
 
 /**
  * 坦克基类：持有模型与状态，提供地形跟随、瞄准同步、枪口坐标。
